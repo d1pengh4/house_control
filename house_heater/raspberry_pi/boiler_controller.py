@@ -9,7 +9,12 @@ import logging
 from typing import Optional
 from supabase import create_client, Client
 from gpiozero import Servo
-from gpiozero.pins.pigpio import PiGPIOFactory
+try:
+    from gpiozero.pins.pigpio import PiGPIOFactory
+    USE_PIGPIO = True
+except ImportError:
+    # pigpio가 없으면 기본 팩토리 사용
+    USE_PIGPIO = False
 from signal import pause
 import os
 
@@ -69,15 +74,24 @@ class BoilerController:
     def init_servo(self) -> bool:
         """서보모터 초기화"""
         try:
-            # pigpio 팩토리 사용 (더 안정적)
-            factory = PiGPIOFactory()
-            self.servo = Servo(
-                SERVO_PIN,
-                pin_factory=factory,
-                min_pulse_width=SERVO_MIN_PULSE_WIDTH,
-                max_pulse_width=SERVO_MAX_PULSE_WIDTH
-            )
-            logger.info(f"서보모터 초기화 완료 (GPIO {SERVO_PIN})")
+            if USE_PIGPIO:
+                # pigpio 팩토리 사용 (더 안정적)
+                factory = PiGPIOFactory()
+                self.servo = Servo(
+                    SERVO_PIN,
+                    pin_factory=factory,
+                    min_pulse_width=SERVO_MIN_PULSE_WIDTH,
+                    max_pulse_width=SERVO_MAX_PULSE_WIDTH
+                )
+                logger.info(f"서보모터 초기화 완료 (GPIO {SERVO_PIN}, pigpio 사용)")
+            else:
+                # 기본 팩토리 사용 (pigpio 없이)
+                self.servo = Servo(
+                    SERVO_PIN,
+                    min_pulse_width=SERVO_MIN_PULSE_WIDTH,
+                    max_pulse_width=SERVO_MAX_PULSE_WIDTH
+                )
+                logger.info(f"서보모터 초기화 완료 (GPIO {SERVO_PIN}, 기본 팩토리 사용)")
             return True
         except Exception as e:
             logger.error(f"서보모터 초기화 실패: {e}")

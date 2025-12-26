@@ -1,35 +1,22 @@
 #!/bin/bash
-# 스마트 난방 조절기 설치 스크립트
+# pigpio 문제 해결 버전 설치 스크립트
 
 set -e
 
 echo "=== 스마트 난방 조절기 설치 시작 ==="
 
-# 1. 필요한 시스템 패키지 설치
+# 1. 필요한 시스템 패키지 설치 (pigpio 제외)
 echo "1. 시스템 패키지 설치 중..."
 sudo apt update
 sudo apt install -y python3-pip git python3-dev gcc
 
-# pigpio 시스템 패키지 시도 (없으면 스킵)
-echo "   pigpio 시스템 패키지 확인 중..."
-if sudo apt install -y pigpio 2>/dev/null; then
-    echo "   pigpio 시스템 패키지 설치 완료"
-    # pigpio 데몬 시작 및 자동 시작 설정
-    echo "2. pigpio 데몬 설정 중..."
-    sudo systemctl enable pigpiod
-    sudo systemctl start pigpiod
-else
-    echo "   pigpio 시스템 패키지를 찾을 수 없습니다. Python 패키지로 진행합니다."
-    echo "2. pigpio 데몬 설정 건너뜀 (Python 패키지 사용)"
-fi
-
-# 3. Python 패키지 설치
-echo "3. Python 패키지 설치 중..."
+# 2. Python 패키지 설치
+echo "2. Python 패키지 설치 중..."
 pip3 install -r requirements.txt
 
-# 4. 작업 디렉토리 생성
+# 3. 작업 디렉토리 생성
 WORK_DIR="/home/$(whoami)/boiler_controller"
-echo "4. 작업 디렉토리 생성: $WORK_DIR"
+echo "3. 작업 디렉토리 생성: $WORK_DIR"
 mkdir -p "$WORK_DIR"
 
 # 현재 스크립트 위치에서 파일 복사
@@ -41,7 +28,7 @@ cp "$SCRIPT_DIR/requirements.txt" "$WORK_DIR/"
 chmod +x "$WORK_DIR/boiler_controller.py"
 
 # 6. 서비스 파일 복사 및 설정 안내
-echo "5. 서비스 파일 준비 중..."
+echo "4. 서비스 파일 준비 중..."
 cp "$SCRIPT_DIR/boiler-controller.service" "$WORK_DIR/"
 
 echo ""
@@ -49,12 +36,8 @@ echo "=== 설치 완료 ==="
 echo ""
 echo "다음 단계를 수행하세요:"
 echo ""
-echo "1. Supabase 정보를 서비스 파일에 입력:"
-echo "   sudo nano $WORK_DIR/boiler-controller.service"
-echo ""
-echo "   다음 부분을 수정:"
-echo "   Environment=\"SUPABASE_URL=YOUR_SUPABASE_URL_HERE\""
-echo "   Environment=\"SUPABASE_KEY=YOUR_SUPABASE_KEY_HERE\""
+echo "1. Supabase 정보 확인 (서비스 파일에 이미 설정되어 있음)"
+echo "   cat $WORK_DIR/boiler-controller.service | grep SUPABASE"
 echo ""
 echo "2. 서비스 파일을 시스템 디렉토리로 복사:"
 echo "   sudo cp $WORK_DIR/boiler-controller.service /etc/systemd/system/"

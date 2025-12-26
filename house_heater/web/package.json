@@ -1,0 +1,9 @@
+{
+  "name": "house-controller-web",
+  "version": "1.0.0",
+  "description": "스마트 난방 조절기 웹 UI",
+  "scripts": {
+    "deploy": "vercel --prod"
+  }
+}
+
