@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>스마트 난방 조절기</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .status-display {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .status-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .status-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .mode-0 {
+            color: #ffd93d;
+        }
+
+        .mode-60 {
+            color: #6bcf7f;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .mode-button {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 20px;
+            padding: 30px 20px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .mode-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .mode-button.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .mode-button .button-title {
+            font-size: 28px;
+        }
+
+        .mode-button .button-subtitle {
+            font-size: 16px;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        .button-0 {
+            background: linear-gradient(135deg, #ffd93d 0%, #ffb347 100%);
+        }
+
+        .button-60 {
+            background: linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%);
+        }
+
+        .pin-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pin-modal.active {
+            display: flex;
+        }
+
+        .pin-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 90%;
+            width: 350px;
+            text-align: center;
+        }
+
+        .pin-content h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .pin-input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .pin-digit {
+            width: 50px;
+            height: 60px;
+            font-size: 28px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        .pin-digit:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .pin-error {
+            color: #e74c3c;
+            margin-top: 10px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- PIN 인증 모달 -->
+    <div class="pin-modal active" id="pinModal">
+        <div class="pin-content">
+            <h2>PIN 번호 입력</h2>
+            <div class="pin-input-group">
+                <input type="text" class="pin-digit" id="pin1" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                <input type="text" class="pin-digit" id="pin2" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                <input type="text" class="pin-digit" id="pin3" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                <input type="text" class="pin-digit" id="pin4" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            </div>
+            <div class="pin-error" id="pinError"></div>
+            <div class="loading" id="pinLoading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div class="container" id="mainContainer" style="display: none;">
+        <div class="header">
+            <h1>🔥 스마트 난방 조절기</h1>
+        </div>
+
+        <div class="status-display">
+            <div class="status-label">현재 모드</div>
+            <div class="status-value" id="currentStatus">확인 중...</div>
+        </div>
+
+        <div class="button-group">
+            <button class="mode-button button-0" id="mode0Btn" onclick="setMode('mode_0')">
+                <div class="button-title">🔥 실내 난방</div>
+                <div class="button-subtitle">0도 모드</div>
+            </button>
+            <button class="mode-button button-60" id="mode60Btn" onclick="setMode('mode_60')">
+                <div class="button-title">💧 온수 전용</div>
+                <div class="button-subtitle">60도 모드</div>
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>처리 중...</div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase 설정
+        const SUPABASE_URL = 'https://ajtjxkngstbzbjhvtkdr.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_CEWJ_yVJQQOGHpAK43dhJQ_X0bIkX6h';
+        const CORRECT_PIN = '1234'; // PIN 번호 변경 권장
+
+        let supabaseClient = null;
+        let currentMode = null;
+
+        // Supabase 초기화
+        function initSupabase() {
+            if (!SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes('YOUR_') || SUPABASE_KEY.includes('YOUR_')) {
+                console.error('Supabase 설정이 필요합니다!');
+                alert('Supabase URL과 KEY를 설정해주세요.');
+                return false;
+            }
+            
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            return true;
+        }
+
+        // PIN 인증
+        function setupPinInput() {
+            const pinInputs = ['pin1', 'pin2', 'pin3', 'pin4'].map(id => document.getElementById(id));
+            
+            pinInputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    e.target.value = value;
+                    
+                    if (value && index < pinInputs.length - 1) {
+                        pinInputs[index + 1].focus();
+                    }
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        pinInputs[index - 1].focus();
+                    }
+                });
+
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+                    pasted.split('').forEach((char, i) => {
+                        if (pinInputs[i]) {
+                            pinInputs[i].value = char;
+                        }
+                    });
+                    if (pasted.length === 4) {
+                        pinInputs[3].focus();
+                        checkPin();
+                    }
+                });
+            });
+
+            // 4자리 모두 입력되면 자동 확인
+            pinInputs[3].addEventListener('input', () => {
+                if (pinInputs.every(inp => inp.value)) {
+                    setTimeout(checkPin, 100);
+                }
+            });
+
+            // 첫 번째 입력 필드 포커스
+            pinInputs[0].focus();
+        }
+
+        function checkPin() {
+            const pin = ['pin1', 'pin2', 'pin3', 'pin4']
+                .map(id => document.getElementById(id).value)
+                .join('');
+            
+            const pinError = document.getElementById('pinError');
+            const pinLoading = document.getElementById('pinLoading');
+            
+            if (pin.length !== 4) {
+                return;
+            }
+
+            pinLoading.classList.add('active');
+            pinError.textContent = '';
+
+            // PIN 확인 (실제로는 서버에서 확인해야 하지만, 예제에서는 클라이언트에서 처리)
+            setTimeout(() => {
+                if (pin === CORRECT_PIN) {
+                    document.getElementById('pinModal').classList.remove('active');
+                    document.getElementById('mainContainer').style.display = 'flex';
+                    initApp();
+                } else {
+                    pinError.textContent = 'PIN 번호가 올바르지 않습니다.';
+                    ['pin1', 'pin2', 'pin3', 'pin4'].forEach(id => {
+                        document.getElementById(id).value = '';
+                    });
+                    document.getElementById('pin1').focus();
+                }
+                pinLoading.classList.remove('active');
+            }, 500);
+        }
+
+        // 앱 초기화
+        function initApp() {
+            if (!initSupabase()) {
+                return;
+            }
+
+            // 현재 상태 조회
+            loadCurrentMode();
+
+            // Realtime 구독
+            subscribeToChanges();
+        }
+
+        // 현재 모드 조회
+        async function loadCurrentMode() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('boiler_control')
+                    .select('mode')
+                    .eq('id', 1)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    updateStatusDisplay(data.mode);
+                    updateButtonStates(data.mode);
+                }
+            } catch (error) {
+                console.error('모드 조회 실패:', error);
+                document.getElementById('currentStatus').textContent = '조회 실패';
+            }
+        }
+
+        // 모드 설정
+        async function setMode(mode) {
+            const loading = document.getElementById('loading');
+            loading.classList.add('active');
+
+            // 버튼 비활성화
+            document.getElementById('mode0Btn').classList.add('disabled');
+            document.getElementById('mode60Btn').classList.add('disabled');
+
+            try {
+                const { error } = await supabaseClient
+                    .from('boiler_control')
+                    .update({ 
+                        mode: mode,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', 1);
+
+                if (error) throw error;
+
+                // 상태 업데이트 (Realtime을 통해 자동으로 업데이트되지만 즉시 반영)
+                updateStatusDisplay(mode);
+                updateButtonStates(mode);
+
+            } catch (error) {
+                console.error('모드 설정 실패:', error);
+                alert('모드 변경에 실패했습니다. 다시 시도해주세요.');
+            } finally {
+                loading.classList.remove('active');
+                document.getElementById('mode0Btn').classList.remove('disabled');
+                document.getElementById('mode60Btn').classList.remove('disabled');
+            }
+        }
+
+        // Realtime 구독
+        function subscribeToChanges() {
+            supabaseClient
+                .channel('boiler_control_channel')
+                .on('postgres_changes', 
+                    { 
+                        event: 'UPDATE', 
+                        schema: 'public', 
+                        table: 'boiler_control',
+                        filter: 'id=eq.1'
+                    }, 
+                    (payload) => {
+                        console.log('변경 감지:', payload);
+                        if (payload.new) {
+                            updateStatusDisplay(payload.new.mode);
+                            updateButtonStates(payload.new.mode);
+                        }
+                    }
+                )
+                .subscribe();
+        }
+
+        // 상태 표시 업데이트
+        function updateStatusDisplay(mode) {
+            const statusEl = document.getElementById('currentStatus');
+            currentMode = mode;
+            
+            if (mode === 'mode_0') {
+                statusEl.textContent = '🔥 실내 난방 모드';
+                statusEl.className = 'status-value mode-0';
+            } else if (mode === 'mode_60') {
+                statusEl.textContent = '💧 온수 전용 모드';
+                statusEl.className = 'status-value mode-60';
+            } else {
+                statusEl.textContent = '알 수 없는 모드';
+                statusEl.className = 'status-value';
+            }
+        }
+
+        // 버튼 상태 업데이트
+        function updateButtonStates(mode) {
+            const mode0Btn = document.getElementById('mode0Btn');
+            const mode60Btn = document.getElementById('mode60Btn');
+            
+            if (mode === 'mode_0') {
+                mode0Btn.style.opacity = '1';
+                mode60Btn.style.opacity = '0.7';
+            } else if (mode === 'mode_60') {
+                mode0Btn.style.opacity = '0.7';
+                mode60Btn.style.opacity = '1';
+            }
+        }
+
+        // 페이지 로드 시 PIN 입력 설정
+        window.addEventListener('DOMContentLoaded', () => {
+            setupPinInput();
+        });
+    </script>
+</body>
+</html>
+

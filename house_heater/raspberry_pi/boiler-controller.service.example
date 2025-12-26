@@ -1,0 +1,20 @@
+[Unit]
+Description=Smart Boiler Controller Service
+After=network.target pigpiod.service
+Wants=pigpiod.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/boiler_controller
+Environment="SUPABASE_URL=https://ajtjxkngstbzbjhvtkdr.supabase.co"
+Environment="SUPABASE_KEY=sb_publishable_CEWJ_yVJQQOGHpAK43dhJQ_X0bIkX6h"
+ExecStart=/usr/bin/python3 /home/pi/boiler_controller/boiler_controller.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

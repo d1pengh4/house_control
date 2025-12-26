@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>스마트 난방 조절기</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ... existing styles ... -->
+</head>
+<body>
+    <!-- ... existing HTML ... -->
+
+    <script>
+        // Supabase 설정
+        const SUPABASE_URL = 'https://ajtjxkngstbzbjhvtkdr.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_CEWJ_yVJQQOGHpAK43dhJQ_X0bIkX6h';
+        const CORRECT_PIN = '1234'; // PIN 번호 변경 권장
+
+        // ... existing JavaScript ...
+    </script>
+</body>
+</html>
+
